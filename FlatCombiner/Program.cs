@@ -14,14 +14,28 @@ namespace FlatCombiner
     class Program
     {
         public static List<FlatContainer> Flats { get; set; }
-        public static int ValicateCounter { get; private set; }
+        public static int ValidateCounter { get; private set; }
         public static List<List<string>> SuccessfulCombinations { get; private set; }
 
         public static int StepLimit = 8;
+        private static readonly bool lattitude = true;
 
         static void Main(string[] args)
         {
-            string json = System.IO.File.ReadAllText(@"E:\Dropbox\WORK\154_ROBOT\04_Grasshopper\Source\flats03.json");            
+            if (lattitude)
+                LattitudeSection(@"E:\Dropbox\WORK\154_ROBOT\04_Grasshopper\Source\flats03.json", @"E:\Dropbox\WORK\154_ROBOT\07_Import-Export\names_01.txt");
+            else
+                LongitudeBlock();
+        }
+
+        private static void LongitudeBlock()
+        {
+            throw new NotImplementedException();
+        }
+
+        private static void LattitudeSection(string sourceFilePath, string outputFilePath)
+        {
+            string json = System.IO.File.ReadAllText(sourceFilePath);            
             Flats = JsonConvert.DeserializeObject<List<FlatContainer>>(json);
             Flats.RemoveAll(item => item == null);
 
@@ -32,20 +46,17 @@ namespace FlatCombiner
             SuccessfulCombinations = new List<List<string>>();
 
             // запуск действа
-            TryAddFlat(stack, stepCount); 
+            TryAddFlat(stack, stepCount);
 
-            // сохранение файла
-            string savePath = @"E:\Dropbox\WORK\154_ROBOT\07_Import-Export\names_01.txt";
-            //SaveFile(savePath);
+            // сохранение файла            
+            //SaveFile(outputFilePath);
 
+            // всякая хрень для проверки
             foreach (var flat in Flats)
             {
                 Console.WriteLine(flat.ToString());
             }
-            
-
-            
-            Console.WriteLine(ValicateCounter.ToString());
+            Console.WriteLine(ValidateCounter.ToString());
             Console.WriteLine(SuccessfulCombinations.Count);
             Console.ReadKey();
         }
@@ -86,7 +97,7 @@ namespace FlatCombiner
 
         private static void Validate(Stack<FlatContainer> stack)
         {
-            ValicateCounter ++;
+            ValidateCounter ++;
 
             var arr = stack.ToArray(); // массив для удобства (копия?)
             var rightFlat = stack.Pop(); //вытащить последний            
