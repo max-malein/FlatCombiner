@@ -37,6 +37,8 @@ namespace FlatCombiner
         public int TopSteps { get; set; }
         public FlatLocattionType FType {get; set;}
 
+        public FlatContainer() { }
+
         public override string ToString()
         {
             return string.Format("{0}, bSteps = {1}, tSteps = {2}, {3}", Id, BottomSteps, TopSteps, FType);
