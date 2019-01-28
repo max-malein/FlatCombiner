@@ -13,12 +13,16 @@ namespace FlatCombiner
 {
     class Program
     {
-        public static List<FlatContainer> Flats { get; set; }
+        public static List<FlatContainer> BottomFlats { get; set; }
+        public static List<FlatContainer> TopFlats { get; set; }
         public static int ValidateCounter { get; private set; }
         public static List<List<string>> SuccessfulCombinations { get; private set; }
 
-        public static int StepLimit = 8;
+        
+        // определить широтные или меридианальные секции!!!
         private static readonly bool lattitude = true;
+        // количество шагов
+        public static int StepLimit = 8;
 
         static void Main(string[] args)
         {
@@ -35,9 +39,11 @@ namespace FlatCombiner
 
         private static void LattitudeSection(string sourceFilePath, string outputFilePath)
         {
-            string json = System.IO.File.ReadAllText(sourceFilePath);            
-            Flats = JsonConvert.DeserializeObject<List<FlatContainer>>(json);
-            Flats.RemoveAll(item => item == null);
+            string json = System.IO.File.ReadAllText(sourceFilePath);
+            List<FlatContainer> AllFlats = JsonConvert.DeserializeObject<List<FlatContainer>>(json);
+            AllFlats.RemoveAll(item => item == null);
+
+            SplitFlats(AllFlats);
 
             int stepCount = 0;
             
@@ -52,13 +58,28 @@ namespace FlatCombiner
             //SaveFile(outputFilePath);
 
             // всякая хрень для проверки
-            foreach (var flat in Flats)
+            foreach (var flat in AllFlats)
             {
                 Console.WriteLine(flat.ToString());
             }
             Console.WriteLine(ValidateCounter.ToString());
             Console.WriteLine(SuccessfulCombinations.Count);
             Console.ReadKey();
+        }
+
+        /// <summary>
+        /// Разделяет квартиры на верхние и нижние
+        /// </summary>
+        /// <param name="allFlats"></param>
+        private static void SplitFlats(List<FlatContainer> allFlats)
+        {
+            foreach (var item in allFlats)
+            {
+                if (item.FType == FlatContainer.FlatLocattionType.MiddleUp)
+                    TopFlats.Add(item);
+                else
+                    BottomFlats.Add(item);
+            }
         }
 
         private static void SaveFile(string savePath)
@@ -76,7 +97,7 @@ namespace FlatCombiner
 
         private static void TryAddFlat(Stack<FlatContainer> stack, int stepCount)
         {
-            foreach (var flat in Flats)
+            foreach (var flat in BottomFlats)
             {
                 var totalSteps = stepCount + flat.BottomSteps;
                 if (totalSteps > StepLimit) continue; //возврат если превышен лимит
@@ -112,11 +133,19 @@ namespace FlatCombiner
              
             for (int i=1; i<arr.Length-1; i++)
             {
-                if (arr[i].FType != FlatContainer.FlatLocattionType.Middle) return;
+                if (arr[i].FType != FlatContainer.FlatLocattionType.MiddleDown) return;
             }
 
             // проверка верхних шагов
-            if (!CheckTop(arr)) return;
+            if (lattitude)
+            {
+                if (!CheckTopLat(arr)) return;
+            }
+            else // меридианалка
+            {
+                if (!CheckTopLong(arr)) return;
+            }
+
 
             //все тесты пройдены!!!
             stack.Push(rightFlat);
@@ -126,7 +155,12 @@ namespace FlatCombiner
             return;
         }
 
-        private static bool CheckTop(FlatContainer[] arr)
+        private static bool CheckTopLong(FlatContainer[] arr)
+        {
+            throw new NotImplementedException();
+        }
+
+        private static bool CheckTopLat(FlatContainer[] arr)
         {
             switch(StepLimit)
             {

@@ -14,20 +14,27 @@ namespace FlatCombiner
             {
                 id = value;
                 if (value == null) return;
-                string pat = @".{3}(?=_[UD])";
+                string pat = @".{3}_[UD]";
                 var code = System.Text.RegularExpressions.Regex.Match(id, pat).Value;
                 switch (code)
                 {
-                    case "b_R":
+                    case "b_R_U":
+                    case "b_R_D":
                         FType = FlatLocattionType.CornerRight;
                         break;
 
-                    case "b_L":
+                    case "b_L_U":
+                    case "b_L_D":
                         FType = FlatLocattionType.CornerLeft;
                         break;
 
+                    case "m_R_D":
+                    case "m_L_D":
+                        FType = FlatLocattionType.MiddleDown;
+                        break;
+
                     default:
-                        FType = FlatLocattionType.Middle;
+                        FType = FlatLocattionType.MiddleUp;
                         break;
                 }
                 return;
@@ -48,7 +55,8 @@ namespace FlatCombiner
         {
             CornerLeft,
             CornerRight,
-            Middle
+            MiddleDown,
+            MiddleUp
         }
     }
 
