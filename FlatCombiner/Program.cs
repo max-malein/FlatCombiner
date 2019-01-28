@@ -21,7 +21,7 @@ namespace FlatCombiner
 
         static void Main(string[] args)
         {
-            string json = System.IO.File.ReadAllText(@"E:\Dropbox\WORK\154_ROBOT\04_Grasshopper\Source\flats03.json");            
+            string json = System.IO.File.ReadAllText(@"E:\Dropbox\WORK\154_ROBOT\04_Grasshopper\Source\flats-lat-02.json");            
             Flats = JsonConvert.DeserializeObject<List<FlatContainer>>(json);
             Flats.RemoveAll(item => item == null);
 
@@ -35,8 +35,8 @@ namespace FlatCombiner
             TryAddFlat(stack, stepCount); 
 
             // сохранение файла
-            string savePath = @"E:\Dropbox\WORK\154_ROBOT\07_Import-Export\names_01.txt";
-            //SaveFile(savePath);
+            string savePath = @"E:\Dropbox\WORK\154_ROBOT\07_Import-Export\names_lat_8step-02.txt";
+            SaveFile(savePath);
 
             foreach (var flat in Flats)
             {
