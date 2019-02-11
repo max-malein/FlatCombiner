@@ -21,6 +21,7 @@ namespace FlatCombiner
 
                 if (shortSide) //короткие торцевые квартиры
                 {
+                    id = System.Text.RegularExpressions.Regex.Replace(value, pat2, ""); // убрать хрень из имени
                     switch (code)
                     {
                         case "b_R_U":
