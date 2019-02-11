@@ -15,9 +15,9 @@ namespace FlatCombiner
     {
         //======================== задать входящие вручную!
         private static readonly bool lattitude = false;
-        public static int StepLimit = 8; // количество шагов
+        public static int StepLimit = 9; // количество шагов
         private static readonly string sourceFilePath = @"E:\Dropbox\WORK\154_ROBOT\04_Grasshopper\Source\flats-lon-01.json";
-        private static readonly string outputFilePath = @"E:\Dropbox\WORK\154_ROBOT\07_Import-Export\flats-lon-01.txt";
+        private static readonly string outputFilePath = @"E:\Dropbox\WORK\154_ROBOT\07_Import-Export\flats-lon-01-9steps.txt";
         private static readonly bool save = true;
         //====================================================================
 
@@ -269,6 +269,7 @@ namespace FlatCombiner
                 if (item.FType == FlatContainer.FlatLocattionType.CornerRightUp && rightCorner) return;
 
                 if (steps == lluLength && item.Id != "llu") return;
+                if (item.Id == "llu" && steps != lluLength) return;
                 steps += item.TopSteps;
 
                 if (item.Id == "llu") lluCouner++;
@@ -280,6 +281,7 @@ namespace FlatCombiner
 
             // все ок добавляй хуйню
             AddSuccessfullLongitudeCombination(arr, topArray);
+           // var successCounter++;
 
         }
 
