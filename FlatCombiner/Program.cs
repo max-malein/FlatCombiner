@@ -7,7 +7,7 @@ using Robot;
 using Newtonsoft.Json;
 using Rhino;
 using Rhino.Geometry;
-
+using Grasshopper.Kernel.Special;
 
 namespace FlatCombiner
 {
@@ -17,9 +17,13 @@ namespace FlatCombiner
         private static readonly bool lattitude = false;
         public static int StepLimit = 9; // количество шагов
         private static readonly string sourceFilePath = @"E:\Dropbox\WORK\154_ROBOT\04_Grasshopper\Source\flats-lon-01.json";
-        private static readonly string outputFilePath = @"E:\Dropbox\WORK\154_ROBOT\07_Import-Export\flats-lon-01-9steps.txt";
+        private static readonly string outputFilePath = @"E:\Dropbox\WORK\154_ROBOT\07_Exchange\flats-standard-lon-10steps.txt";
         private static readonly bool save = true;
         //====================================================================
+
+        //коды:
+        private static string inputCode = "MU_1_0;MU_2_0;MU_3_0;MD_0_1;MD_0_2;MD_0_3;CL_1_1;CL_1_2;CL_1_3;CL_2_1;CL_2_2;CL_2_3;CL_3_1;CL_3_2;CR_1_1;CR_1_2;CR_1_3;CR_2_1;CR_2_2;CR_2_3;CR_3_1;CR_3_2;CL_1_0;CL_2_0;CL_3_0;CL_0_1;CL_0_2;CL_0_3;CR_1_0;CR_2_0;CR_3_0;CR_0_1;CR_0_2;CR_0_3";
+
 
         public static List<FlatContainer> BottomFlats { get; set; }
         public static List<FlatContainer> TopFlats { get; set; }
@@ -53,11 +57,16 @@ namespace FlatCombiner
                         break;
                 }
             }
-                
-                
+
+            /*    
             string json = System.IO.File.ReadAllText(sourceFilePath);
             List<FlatContainer> AllFlats = JsonConvert.DeserializeObject<List<FlatContainer>>(json);
             AllFlats.RemoveAll(item => item == null);
+            */
+
+
+            //Создать FlatContainer
+            var AllFlats = inputCode.Split(';').Select(c => new FlatContainer(c)).ToList();
 
             SplitFlats(AllFlats);
 
@@ -292,6 +301,10 @@ namespace FlatCombiner
             success.AddRange(topArray);
             success.AddRange(arr);
             SuccessfulCombinations.Add(success.Select(t=> t.Id).ToList());
+
+            Console.Write(SuccessfulCombinations.Count + ": ");
+            success.ForEach(s => Console.Write(s.Id + " "));
+            Console.WriteLine();
         }
 
         private static void TryAddTopRight(FlatContainer[] arr, FlatContainer topLeftFlat) // убрать начиная отсюда!
