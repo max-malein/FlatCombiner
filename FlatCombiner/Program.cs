@@ -15,48 +15,54 @@ namespace FlatCombiner
     {
         //======================== задать входящие вручную!
         private static readonly bool lattitude = false;
-        public static int StepLimit = 9; // количество шагов
+        public static int StepLimit = 5; // количество шагов
         private static readonly string sourceFilePath = @"E:\Dropbox\WORK\154_ROBOT\04_Grasshopper\Source\flats-lon-01.json";
-        private static readonly string outputFilePath = @"E:\Dropbox\WORK\154_ROBOT\07_Exchange\flats-standard-lon-10steps.txt";
+        private static readonly string outputFilePath = @"E:\Dropbox\WORK\154_ROBOT\07_Exchange\test_5.txt";
         private static readonly bool save = true;
         //====================================================================
 
         //коды:
         private static string inputCode = "MU_1_0;MU_2_0;MU_3_0;MD_0_1;MD_0_2;MD_0_3;CL_1_1;CL_1_2;CL_1_3;CL_2_1;CL_2_2;CL_2_3;CL_3_1;CL_3_2;CR_1_1;CR_1_2;CR_1_3;CR_2_1;CR_2_2;CR_2_3;CR_3_1;CR_3_2;CL_1_0;CL_2_0;CL_3_0;CL_0_1;CL_0_2;CL_0_3;CR_1_0;CR_2_0;CR_3_0;CR_0_1;CR_0_2;CR_0_3";
 
+        private static int lluSteps = 2;
 
-        public static List<FlatContainer> BottomFlats { get; set; }
-        public static List<FlatContainer> TopFlats { get; set; }
+        private static List<FlatContainer> BottomFlats = new List<FlatContainer>();
+        private static List<FlatContainer> TopFlats = new List<FlatContainer>();
+        private static List<FlatContainer> LeftCornerFlats = new List<FlatContainer>();
+        private static List<FlatContainer> RightCornerFlats = new List<FlatContainer>();
+        private static List<FlatContainer> TopLeftCornerFlats = new List<FlatContainer>();
+        private static List<FlatContainer> TopRightCornerFlats = new List<FlatContainer>();
         public static int ValidateCounter { get; private set; }
-        public static List<List<string>> SuccessfulCombinations { get; private set; }
+        public static List<List<string>> SuccessfulCombinations = new List<List<string>>();
 
-        private static int TopLeftLength = 0;
-        private static int TopRightLength = 0;
+        //длина слева и справа от ллу
+        private static int TopLeftLength = (int) ((StepLimit - lluSteps) / 2);
+        private static int TopRightLength = StepLimit - lluSteps - TopLeftLength;
+
+        private static List<FlatContainer> currentBottomCorners;
+        private static FlatContainer currentBottomRightCorner;
+        private static Stack<FlatContainer> currentBottomStack;
+        private static FlatContainer currentBottomLeftCorner;
+        private static Stack<FlatContainer> tempStack;
+        private static List<List<FlatContainer>> tempCombinations;
+        private static Dictionary<int, List<List<FlatContainer>>> topCombinations = new Dictionary<int, List<List<FlatContainer>>>();
+        private static Dictionary<int, List<List<FlatContainer>>> bottomCombinations = new Dictionary<int, List<List<FlatContainer>>>();
+
+        //Создать пустой список для заполнения
+        private static List<FlatContainer> nothingList = new List<FlatContainer>()
+        {
+            new FlatContainer()
+            {
+                TopSteps = 0,
+                Id = "nothing",
+                FType = FlatContainer.FlatLocattionType.MiddleUp
+            }
+        };
+
 
         static void Main(string[] args)
         {
-
-            if (!lattitude)
-            {
-                // врехние шаги для меридианалок
-                switch (StepLimit)
-                {
-                    case 8:
-                        TopLeftLength = 3;
-                        TopRightLength = 3;
-                        break;
-                    case 9:
-                        TopLeftLength = 3;
-                        TopRightLength = 4;
-                        break;
-                    case 10:
-                        TopLeftLength = 4;
-                        TopRightLength = 4;
-                        break;
-                    default:
-                        break;
-                }
-            }
+           
 
             /*    
             string json = System.IO.File.ReadAllText(sourceFilePath);
@@ -72,12 +78,123 @@ namespace FlatCombiner
 
             int stepCount = 0;
 
-            Stack<FlatContainer> stack = new Stack<FlatContainer>();
-            SuccessfulCombinations = new List<List<string>>();
+            //Найти комбинации снизу
+            for (int i = 0; i <= StepLimit; i++)
+            {
+                tempStack = new Stack<FlatContainer>();
+                tempCombinations = new List<List<FlatContainer>>();
+                GetAllCombinations(BottomFlats, i, true);
+
+                bottomCombinations.Add(i, tempCombinations);
+            }
+
+            //Найти комбинации сверху
+            for (int i = 0; i <= TopRightLength; i++)
+            {
+                tempStack = new Stack<FlatContainer>();
+                tempCombinations = new List<List<FlatContainer>>();
+                GetAllCombinations(TopFlats, i, false);
+
+                topCombinations.Add(i, tempCombinations);
+            }
+
 
             // запуск действа
-            TryAddBottomFlat(stack, stepCount);
 
+            foreach (var leftCorner in LeftCornerFlats)
+            {
+                currentBottomLeftCorner = leftCorner;
+                foreach (var rigthCorner in RightCornerFlats)
+                {
+                    int bottomSteps = StepLimit - leftCorner.BottomSteps - rigthCorner.BottomSteps;
+                    if (bottomSteps < 0) continue;
+                    foreach (var bottomMid in bottomCombinations[bottomSteps])
+                    {                        
+                        var realTopLeftCornerFlats = TopLeftCornerFlats;
+
+                        //Если верхняя угловая не нужна, то ее нужно заменить на пустышку
+                        if (leftCorner.FType == FlatContainer.FlatLocattionType.CornerLeft) 
+                            realTopLeftCornerFlats = nothingList;
+
+                        foreach (var leftTopCorner in realTopLeftCornerFlats)
+                        {
+                            var leftLluSize = TopLeftLength - leftCorner.TopSteps - leftTopCorner.TopSteps;
+
+                            var leftTopFlats = new List<List<FlatContainer>>();
+                            if (leftLluSize < 0)
+                                continue;
+                            else if (leftLluSize == 0)
+                                leftTopFlats.Add(nothingList);
+                            else
+                                leftTopFlats = topCombinations[leftLluSize];
+
+                            foreach (var leftTopFlat in leftTopFlats)
+                            {
+                                //Взять правый угол
+                                var realTopRightCornerFlats = TopRightCornerFlats;
+
+                                //Если верхняя угловая не нужна, то ее нужно заменить на пустышку
+                                if (rigthCorner.FType == FlatContainer.FlatLocattionType.CornerRight)
+                                    realTopRightCornerFlats = nothingList;
+
+                                foreach (var rightTopCorner in realTopRightCornerFlats)
+                                {
+                                    var rightLluSize = TopRightLength - rightTopCorner.TopSteps - rigthCorner.TopSteps;
+
+                                    var rightTopFlats = new List<List<FlatContainer>>();
+                                    if (rightLluSize < 0)
+                                        continue;
+                                    else if (rightLluSize == 0)
+                                        rightTopFlats.Add(nothingList);
+                                    else
+                                        rightTopFlats = topCombinations[rightLluSize];
+
+                                    foreach (var rightTopFlat in rightTopFlats)
+                                    {
+                                        //Все готово, можно собирать комбинацию!
+                                        var successfulCombination = new List<FlatContainer>();
+
+                                        successfulCombination.Add(leftCorner);
+                                        
+                                        if (!bottomMid.Where(f => f.Id == "nothing").Any())
+                                            successfulCombination.AddRange(bottomMid);
+
+                                        successfulCombination.Add(rigthCorner);
+
+                                        if (leftTopCorner.Id != "nothing")
+                                            successfulCombination.Add(leftTopCorner);
+
+                                        if (!leftTopFlat.Where(f => f.Id == "nothing").Any())
+                                            successfulCombination.AddRange(leftTopFlat);
+
+                                        var llu = new FlatContainer()
+                                        {
+                                            Id = "llu",
+                                            TopSteps = lluSteps,
+                                            BottomSteps = 0,
+                                            FType = FlatContainer.FlatLocattionType.MiddleUp
+                                        };
+                                        successfulCombination.Add(llu);
+
+                                        if (!rightTopFlat.Where(f => f.Id == "nothing").Any())
+                                            successfulCombination.AddRange(rightTopFlat);
+
+                                        if (rightTopCorner.Id != "nothing")
+                                            successfulCombination.Add(rightTopCorner);
+
+                                        var combIds = successfulCombination.Select(f => f.Id).ToList();
+                                        Console.WriteLine(string.Join(" ", combIds));
+                                        SuccessfulCombinations.Add(combIds);
+                                    }
+                                }
+                            }
+                            
+                        }
+                    }
+                }
+            }
+
+            
             // сохранение файла            
             if(save) SaveFile(outputFilePath);
 
@@ -91,6 +208,7 @@ namespace FlatCombiner
             Console.ReadKey();
         }
 
+       
 
         private static void LongitudeBlock()
         {
@@ -112,24 +230,50 @@ namespace FlatCombiner
             BottomFlats = new List<FlatContainer>();
             foreach (var item in allFlats)
             {
-                if (item.FType == FlatContainer.FlatLocattionType.MiddleUp ||
-                    item.FType == FlatContainer.FlatLocattionType.CornerLeftUp ||
-                    item.FType == FlatContainer.FlatLocattionType.CornerRightUp)
-                    TopFlats.Add(item);
-                else
-                    BottomFlats.Add(item);
+                switch (item.FType)
+                {
+                    case FlatContainer.FlatLocattionType.CornerLeft:
+                    case FlatContainer.FlatLocattionType.CornerLeftDown:
+                        LeftCornerFlats.Add(item);
+                        break;
+
+                    case FlatContainer.FlatLocattionType.CornerRight:
+                    case FlatContainer.FlatLocattionType.CornerRightDown:
+                        RightCornerFlats.Add(item);
+                        break;
+
+                    case FlatContainer.FlatLocattionType.CornerLeftUp:
+                        TopLeftCornerFlats.Add(item);
+                        break;
+
+                    case FlatContainer.FlatLocattionType.CornerRightUp:
+                        TopRightCornerFlats.Add(item);
+                        break;            
+                        
+                    case FlatContainer.FlatLocattionType.MiddleUp:
+                        TopFlats.Add(item);
+                        break;
+
+                    case FlatContainer.FlatLocattionType.MiddleDown:
+                        BottomFlats.Add(item);
+                        break;
+
+                    default:
+                        break;
+                }
             }
+            /*
             if (TopFlats !=null) // добавить ЛЛУ в верхние квартиры
             {
                 var llu = new FlatContainer()
                 {
                     Id = "llu",
-                    TopSteps = 2,
+                    TopSteps = lluSteps,
                     FType = FlatContainer.FlatLocattionType.MiddleUp
                 };
                 TopFlats.Add(llu); 
             }
-                
+                */
         }
 
         private static void SaveFile(string savePath)
@@ -144,69 +288,52 @@ namespace FlatCombiner
             //List<string> unique = combinations.Distinct().ToList();
             System.IO.File.WriteAllLines(savePath, combinations);
         }
-
-        private static void TryAddBottomFlat(Stack<FlatContainer> stack, int stepCount)
+        /// <summary>
+        /// Подбирает все возможные комбинации. Нужно перед вызовом очисить tempStack и tempCominations
+        /// </summary>
+        /// <param name="flats"></param>
+        /// <param name="stepLimit"></param>
+        /// <param name="bottom"></param>
+        private static void GetAllCombinations(List<FlatContainer> flats, int stepLimit, bool bottom)
         {
-            foreach (var flat in BottomFlats)
+            if (stepLimit ==  0)
             {
-                var totalSteps = stepCount + flat.BottomSteps;
-                if (totalSteps > StepLimit) continue; //возврат если превышен лимит
-                if (totalSteps == StepLimit)
-                {
-                    stack.Push(flat);
-                    Validate(stack); // проверка на подходимость
-                }
+                tempCombinations.Add(nothingList);
+                return;
+            }
+
+            foreach (var flat in flats)
+            {
+                int flatSteps = 0;
+                if (bottom)
+                    flatSteps = flat.BottomSteps;
                 else
+                    flatSteps = flat.TopSteps;
+
+                if (flatSteps == stepLimit) //добавить в результаты
                 {
-                    stack.Push(flat);
-                    TryAddBottomFlat(stack, totalSteps);
+                    tempStack.Push(flat);
+                    tempCombinations.Add(tempStack.ToList()); 
+                    tempStack.Pop();
+                }
+                else if (flatSteps > stepLimit) // квартира не подходит
+                {
+                    continue;
+                }
+                else //можно всунуть еще квартирку
+                {
+                    tempStack.Push(flat);
+                    GetAllCombinations(flats, stepLimit - flatSteps, bottom);
                 }
             }
-            if(stack.Count > 0) stack.Pop();
-           
+            if (tempStack.Count > 0) tempStack.Pop();
         }
 
-        private static void Validate(Stack<FlatContainer> stack)
-        {
-            ValidateCounter ++;
-
-            var arr = stack.ToArray(); // массив для удобства (копия?)
-            var rightFlat = stack.Pop(); //вытащить последний            
-
-            //проверка последнего элемента
-            if (rightFlat.FType != FlatContainer.FlatLocattionType.CornerRight && rightFlat.FType != FlatContainer.FlatLocattionType.CornerRightDown) return;
-            //проверка левого элемента
-            var leftFlat = arr[arr.Length-1];
-            if (leftFlat.FType != FlatContainer.FlatLocattionType.CornerLeft && leftFlat.FType != FlatContainer.FlatLocattionType.CornerLeftDown) return;
-
-            //проверка средних элементов             
-            for (int i=1; i<arr.Length-1; i++)
-            {
-                if (arr[i].FType != FlatContainer.FlatLocattionType.MiddleDown) return;
-            }
-
-            // проверка верхних шагов
-            if (lattitude)
-            {
-                if (!CheckTopLat(arr)) return;
-                
-                //все тесты пройдены!!!
-                stack.Push(rightFlat);
-                SuccessfulCombinations.Add(stack.Select(t => t.Id).ToList()); //сохранение id квартир
-
-                stack.Pop();
-                return;
-            }
-            else // меридианалка
-            {
-                AddTopLong(arr);
-                return;
-            }
-        }
 
         private static void AddTopLong(FlatContainer[] arr)
         {
-            
+
+
             var leftFlat = arr[arr.Length - 1];
             var rightFlat = arr[0];
             var topLength = StepLimit;
@@ -218,6 +345,7 @@ namespace FlatCombiner
             if (leftFlat.FType == FlatContainer.FlatLocattionType.CornerLeft)
             {
                 leftCorner = true;
+
                 topLength -= leftFlat.TopSteps;
                 lluLength -= leftFlat.TopSteps;
             }
