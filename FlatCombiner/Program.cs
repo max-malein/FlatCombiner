@@ -9,19 +9,22 @@ using Rhino;
 using Rhino.Geometry;
 using Grasshopper.Kernel.Special;
 using System.Diagnostics;
+using System.IO;
 
 namespace FlatCombiner
 {
     class Program
     {
         //======================== задать входящие вручную!
-        public static int StepLimit = 5; // количество шагов
-        private static readonly string outputFilePath = @"E:\Dropbox\WORK\154_ROBOT\07_Exchange\combinations_5.txt";
+        public static int StepLimit = 13; // количество шагов
+        private static readonly string outputFolderPath = @"E:\Dropbox\WORK\154_ROBOT\07_Exchange";
         private static readonly bool save = true;
         private static int lluSteps = 2;
+        private static bool cornerHblock = false;
 
         //коды:
         private static string inputCode = "MU_1_0;MU_2_0;MU_3_0;MD_0_1;MD_0_2;MD_0_3;CL_1_1;CL_1_2;CL_1_3;CL_2_1;CL_2_2;CL_2_3;CL_3_1;CL_3_2;CR_1_1;CR_1_2;CR_1_3;CR_2_1;CR_2_2;CR_2_3;CR_3_1;CR_3_2;CL_1_0;CL_2_0;CL_3_0;CL_0_1;CL_0_2;CL_0_3;CR_1_0;CR_2_0;CR_3_0;CR_0_1;CR_0_2;CR_0_3";
+        private static string inputCodeCorner = "MU_1_0;MU_2_0;MU_3_0;MD_0_1;MD_0_2;MD_0_3;CR_1_1;CR_1_2;CR_1_3;CR_2_1;CR_2_2;CR_2_3;CR_3_1;CR_3_2;CR_1_0;CR_2_0;CR_3_0;CR_0_1;CR_0_2;CR_0_3";
         //====================================================================
 
 
@@ -35,8 +38,9 @@ namespace FlatCombiner
         public static List<List<string>> SuccessfulCombinations = new List<List<string>>();
 
         //длина слева и справа от ллу
-        private static int TopLeftLength = (int) ((StepLimit - lluSteps) / 2);
+        private static int TopLeftLength = (int)((StepLimit - lluSteps) / 2);
         private static int TopRightLength = StepLimit - lluSteps - TopLeftLength;
+
 
         private static Stack<FlatContainer> tempStack;
         private static List<List<FlatContainer>> tempCombinations;
@@ -57,8 +61,36 @@ namespace FlatCombiner
 
         static void Main(string[] args)
         {
+            //поправить размеры верхнего ряда, если угловая секция
+            if (cornerHblock)
+            {
+                //AL_3_2 - угловая
+                //BL_2_1 - стыковка с широткой
+                var al = new FlatContainer
+                {
+                    Id = "AL_3_2",
+                    BottomSteps = 2,
+                    FType = FlatContainer.FlatLocattionType.CornerLeftDown
+                };
+                var bl = new FlatContainer
+                {
+                    Id = "BL_2_1",
+                    TopSteps = 3,
+                    FType = FlatContainer.FlatLocattionType.CornerLeftUp
+                };
+                LeftCornerFlats.Add(al);
+                TopLeftCornerFlats.Add(bl);
+                TopLeftLength = 3;
+                TopRightLength = StepLimit - 3 - lluSteps;
+            }
+                
+
             //Создать FlatContainer
-            var AllFlats = inputCode.Split(';').Select(c => new FlatContainer(c)).ToList();
+            List<FlatContainer> AllFlats = null;
+            if (cornerHblock)
+                AllFlats = inputCodeCorner.Split(';').Select(c => new FlatContainer(c)).ToList();
+            else
+                AllFlats = inputCode.Split(';').Select(c => new FlatContainer(c)).ToList();
 
             //разбить на списки по расположению
             SplitFlats(AllFlats);
@@ -175,7 +207,7 @@ namespace FlatCombiner
                                         
                                         if (++counter >= 15000000)
                                         {
-                                            SaveFile(outputFilePath + num++);
+                                            SaveFile(outputFolderPath + num++);
                                             counter = 0;
                                             SuccessfulCombinations.Clear();
                                         }
@@ -190,7 +222,7 @@ namespace FlatCombiner
 
             
             // сохранение файла            
-            if(save) SaveFile(outputFilePath);
+            if(save) SaveFile(outputFolderPath);
 
             // всякая хрень для проверки
             foreach (var flat in AllFlats)
@@ -246,17 +278,39 @@ namespace FlatCombiner
             }
         }
 
-        private static void SaveFile(string savePath)
+        private static void SaveFile(string saveFolder)
         {
             List<string> combinations = new List<string>();
+            List<string> combinationsCornerRight = new List<string>(); //только для угловых
             foreach (var success in SuccessfulCombinations)
-            {
-                success.Reverse();                
+            {                               
                 var line = string.Join(",", success);
-                combinations.Add(line);                
+                line = SortCodeClockwise(line);
+                combinations.Add(line);
+                
+                //для угловых нужно создать еще правую секцию
+                //правая секция записана в обратном направлении
+                if (cornerHblock)
+                {
+                    line = line.Replace("AL", "AR");
+                    line = line.Replace("BL", "BR");
+                    combinationsCornerRight.Add(line);
+                }
             }
             //List<string> unique = combinations.Distinct().ToList();
-            System.IO.File.WriteAllLines(savePath, combinations);
+            string corner = cornerHblock ? "_cornerLeft" : "";
+            var fileName = $"combinations{corner}_llu{lluSteps}_{StepLimit}.txt";
+            var filePath = Path.Combine(saveFolder, fileName);
+
+            System.IO.File.WriteAllLines(filePath, combinations);
+            
+            //Сохранить углы, если есть
+            if (combinationsCornerRight.Any())
+            {
+                filePath = filePath.Replace("_cornerLeft_", "_cornerRight_");
+                File.WriteAllLines(filePath, combinationsCornerRight);
+            }    
+                
         }
 
         /// <summary>
@@ -298,6 +352,35 @@ namespace FlatCombiner
                 }
             }
             if (tempStack.Count > 0) tempStack.Pop();
+        }
+
+        public static string SortCodeClockwise(string code)
+        {
+            if (string.IsNullOrEmpty(code)) return null;
+
+            var codes = code.Trim().Split(',').ToList();
+            var sorted = new List<string>();
+
+            //add CL or AL
+            sorted.Add(codes[0]);
+
+            var bottomRow = new List<string>();
+            var topRow = new List<string>();
+            for (int i = 1; i < codes.Count; i++)
+            {
+                bottomRow.Add(codes[i]);
+                if (codes[i].Contains("CR"))
+                {
+                    bottomRow.Reverse();
+                    topRow = codes.Skip(i + 1).ToList();
+                    break;
+                }
+            }
+
+            sorted.AddRange(topRow);
+            sorted.AddRange(bottomRow);
+
+            return string.Join(",", sorted);
         }
     }    
 }
