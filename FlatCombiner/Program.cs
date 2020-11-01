@@ -16,10 +16,10 @@ namespace FlatCombiner
     class Program
     {
         //======================== задать входящие вручную!
-        public static int StepLimit = 13; // количество шагов
+        public static int StepLimit = 6; // количество шагов
         private static readonly string outputFolderPath = @"E:\Dropbox\WORK\154_ROBOT\07_Exchange";
         private static readonly bool save = true;
-        private static int lluSteps = 2;
+        private static int lluSteps = 3;
         private static bool cornerHblock = false;
 
         //коды:
@@ -36,6 +36,8 @@ namespace FlatCombiner
         private static List<FlatContainer> TopRightCornerFlats = new List<FlatContainer>();
 
         public static List<List<string>> SuccessfulCombinations = new List<List<string>>();
+
+        private static string FilePath = string.Empty;
 
         //длина слева и справа от ллу
         private static int TopLeftLength = (int)((StepLimit - lluSteps) / 2);
@@ -61,6 +63,18 @@ namespace FlatCombiner
 
         static void Main(string[] args)
         {
+            var stopwatch = new Stopwatch();
+            stopwatch.Start();
+
+            //создать путь для сохранения
+            if (save)
+            {
+                string corner = cornerHblock ? "_cornerLeft" : "";
+                var fileName = $"combinations{corner}_llu{lluSteps}_{StepLimit}.txt";
+                FilePath = Path.Combine(outputFolderPath, fileName);
+                File.Delete(FilePath);
+            }
+
             //поправить размеры верхнего ряда, если угловая секция
             if (cornerHblock)
             {
@@ -117,8 +131,10 @@ namespace FlatCombiner
 
 
             // запуск действа
-            int counter = 0;
+            int totalCounter = 0;
             int num = 1;
+            int progressCounter = 0;
+            int totalCombinations = LeftCornerFlats.Count * RightCornerFlats.Count * TopRightCornerFlats.Count * TopLeftCornerFlats.Count;
 
 
             foreach (var leftCorner in LeftCornerFlats)
@@ -158,6 +174,8 @@ namespace FlatCombiner
 
                                 foreach (var rightTopCorner in realTopRightCornerFlats)
                                 {
+                                    progressCounter++;
+
                                     var rightLluSize = TopRightLength - rightTopCorner.TopSteps - rigthCorner.TopSteps;
 
                                     var rightTopFlats = new List<List<FlatContainer>>();
@@ -174,11 +192,6 @@ namespace FlatCombiner
                                         var successfulCombination = new List<FlatContainer>();
 
                                         successfulCombination.Add(leftCorner);
-                                        
-                                        if (!bottomMid.Where(f => f.Id == "nothing").Any())
-                                            successfulCombination.AddRange(bottomMid);
-
-                                        successfulCombination.Add(rigthCorner);
 
                                         if (leftTopCorner.Id != "nothing")
                                             successfulCombination.Add(leftTopCorner);
@@ -201,16 +214,29 @@ namespace FlatCombiner
                                         if (rightTopCorner.Id != "nothing")
                                             successfulCombination.Add(rightTopCorner);
 
-                                        var combIds = successfulCombination.Select(f => f.Id).ToList();
-                                        //Console.WriteLine(string.Join(" ", combIds));
+                                        successfulCombination.Add(rigthCorner);
+
+                                        if (!bottomMid.Where(f => f.Id == "nothing").Any())
+                                            successfulCombination.AddRange(bottomMid);
+
+                                        var combIds = successfulCombination.Select(f => f.Id).ToList();                                                                                
                                         SuccessfulCombinations.Add(combIds);
+
+                                        //Сохранять каждые 10000 строк
+                                        if (SuccessfulCombinations.Count >= 10000)
+                                        {
+                                            SaveTextLines(SuccessfulCombinations);
+                                            //Console.Write("\r");
+                                            //Console.Write($"progress: {(int)((progressCounter/totalCombinations) * 100)}%");
+                                        }
                                         
-                                        if (++counter >= 15000000)
+                                        
+                                        /*if (++totalCounter >= 15000000)
                                         {
                                             SaveFile(outputFolderPath + num++);
-                                            counter = 0;
+                                            totalCounter = 0;
                                             SuccessfulCombinations.Clear();
-                                        }
+                                        }*/
                                     }
                                 }
                             }
@@ -220,20 +246,34 @@ namespace FlatCombiner
                 }
             }
 
-            
-            // сохранение файла            
-            if(save) SaveFile(outputFolderPath);
 
-            // всякая хрень для проверки
-            foreach (var flat in AllFlats)
-            {
-                Console.WriteLine(flat.ToString());
-            }
-            Console.WriteLine(SuccessfulCombinations.Count);
+            // сохранение файла            
+            //if(save) SaveFile(outputFolderPath);
+
+            //сохранить остатки
+            SaveTextLines(SuccessfulCombinations);
+
+
+            stopwatch.Stop();
+            Console.WriteLine($"выполнено за {stopwatch.Elapsed.Minutes}:{stopwatch.Elapsed.Seconds}:{stopwatch.Elapsed.Milliseconds}");
             Console.ReadKey();
         }
 
-       
+        private static void SaveTextLines(List<List<string>> successfulCombinations)
+        {
+            if (!successfulCombinations.Any()) return;
+
+            var lines = successfulCombinations.Select(comb => string.Join(",", comb));
+            File.AppendAllLines(FilePath, lines);
+            successfulCombinations.Clear();
+        }
+
+        private static void SaveTextLine(List<string> combIds)
+        {           
+            File.AppendAllText(FilePath, string.Join(",", combIds));
+        }
+
+
         /// <summary>
         /// Разделяет квартиры на верхние и нижние
         /// </summary>
@@ -282,6 +322,11 @@ namespace FlatCombiner
         {
             List<string> combinations = new List<string>();
             List<string> combinationsCornerRight = new List<string>(); //только для угловых
+
+            string corner = cornerHblock ? "_cornerLeft" : "";
+            var fileName = $"combinations{corner}_llu{lluSteps}_{StepLimit}.txt";
+            var filePath = Path.Combine(saveFolder, fileName);
+
             foreach (var success in SuccessfulCombinations)
             {                               
                 var line = string.Join(",", success);
@@ -298,11 +343,9 @@ namespace FlatCombiner
                 }
             }
             //List<string> unique = combinations.Distinct().ToList();
-            string corner = cornerHblock ? "_cornerLeft" : "";
-            var fileName = $"combinations{corner}_llu{lluSteps}_{StepLimit}.txt";
-            var filePath = Path.Combine(saveFolder, fileName);
-
-            System.IO.File.WriteAllLines(filePath, combinations);
+            
+            if (combinations.Any())
+                System.IO.File.WriteAllLines(filePath, combinations);
             
             //Сохранить углы, если есть
             if (combinationsCornerRight.Any())
