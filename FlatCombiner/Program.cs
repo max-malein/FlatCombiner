@@ -1,13 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Robot;
-using Newtonsoft.Json;
-using Rhino;
-using Rhino.Geometry;
-using Grasshopper.Kernel.Special;
 using System.Diagnostics;
 using System.IO;
 
@@ -16,11 +9,11 @@ namespace FlatCombiner
     class Program
     {
         //======================== задать входящие вручную!
-        public static int StepLimit = 6; // количество шагов
+        public static int StepLimit = 13; // количество шагов
         private static readonly string outputFolderPath = @"E:\Dropbox\WORK\154_ROBOT\07_Exchange";
         private static readonly bool save = true;
-        private static int lluSteps = 3;
-        private static bool cornerHblock = false;
+        private static int lluSteps = 2;
+        private static bool cornerHblock = true;
 
         //коды:
         private static string inputCode = "MU_1_0;MU_2_0;MU_3_0;MD_0_1;MD_0_2;MD_0_3;CL_1_1;CL_1_2;CL_1_3;CL_2_1;CL_2_2;CL_2_3;CL_3_1;CL_3_2;CR_1_1;CR_1_2;CR_1_3;CR_2_1;CR_2_2;CR_2_3;CR_3_1;CR_3_2;CL_1_0;CL_2_0;CL_3_0;CL_0_1;CL_0_2;CL_0_3;CR_1_0;CR_2_0;CR_3_0;CR_0_1;CR_0_2;CR_0_3";
@@ -38,6 +31,7 @@ namespace FlatCombiner
         public static List<List<string>> SuccessfulCombinations = new List<List<string>>();
 
         private static string FilePath = string.Empty;
+        private static string FilePathRightCorner = string.Empty;
 
         //длина слева и справа от ллу
         private static int TopLeftLength = (int)((StepLimit - lluSteps) / 2);
@@ -96,6 +90,10 @@ namespace FlatCombiner
                 TopLeftCornerFlats.Add(bl);
                 TopLeftLength = 3;
                 TopRightLength = StepLimit - 3 - lluSteps;
+
+                //Добавить путь для правого угла
+                FilePathRightCorner = FilePath.Replace("_cornerLeft", "_cornerRight");
+                File.Delete(FilePathRightCorner);
             }
                 
 
@@ -265,6 +263,21 @@ namespace FlatCombiner
 
             var lines = successfulCombinations.Select(comb => string.Join(",", comb));
             File.AppendAllLines(FilePath, lines);
+
+            //Добавить правый угол
+            if (cornerHblock)
+            {
+                var rightCornerLines = new List<string>();
+                foreach (var line in lines)
+                {
+                    var rc = line.Replace("AL", "AR");
+                    rc = rc.Replace("BL", "BR");
+                    rightCornerLines.Add(rc);
+                }
+
+                File.AppendAllLines(FilePathRightCorner, rightCornerLines);
+            }
+
             successfulCombinations.Clear();
         }
 
